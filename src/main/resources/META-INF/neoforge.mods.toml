@@ -1,5 +1,5 @@
 license="${mod_license}"
-#issueTrackerURL=""
+issueTrackerURL="https://github.com/Vaema/SwingThrough/issues"
 
 [[mods]]
 modId="${mod_id}"
