@@ -1,0 +1,25 @@
+license="${mod_license}"
+#issueTrackerURL=""
+
+[[mods]]
+modId="${mod_id}"
+version="${mod_version}"
+displayName="${mod_name}"
+#displayURL=""
+logoFile="logo.png"
+authors="Astra Gravastar"
+description='''A simple mod that allows the player to hit mobs through non-collidable blocks.'''
+
+[[dependencies.${mod_id}]]
+    modId="neoforge"
+    type="required"
+    versionRange="[${neo_version},)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="minecraft"
+    type="required"
+    versionRange="${minecraft_version_range}"
+    ordering="NONE"
+    side="BOTH"

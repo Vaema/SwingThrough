@@ -1,0 +1,89 @@
+package astra.swingthrough;
+
+import com.google.common.collect.Lists;
+import net.minecraft.util.Mth;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.entity.EntitySelector;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.common.util.FakePlayer;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+
+import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Predicate;
+
+@EventBusSubscriber
+public final class LeftClickHandler {
+
+    public static final List<Predicate<LivingEntity>> PREDICATES = Lists.newArrayList();
+
+    private LeftClickHandler() {
+    }
+
+    @SubscribeEvent
+    public static void onLeftClick(PlayerInteractEvent.LeftClickBlock event) {
+        var state = event.getLevel().getBlockState(event.getPos());
+        if (!state.getCollisionShape(event.getLevel(), event.getPos()).isEmpty()) {
+            return;
+        }
+
+        var player = event.getEntity();
+        var rayTraceResult = rayTraceEntity(player, 1.0F,
+                Math.max(player.blockInteractionRange(), player.entityInteractionRange()));
+        if (rayTraceResult != null) {
+            if (!event.getLevel().isClientSide()) {
+                player.attack(rayTraceResult.getEntity());
+            }
+        }
+    }
+
+    @Nullable
+    private static EntityHitResult rayTraceEntity(Player player, float partialTicks, double blockReachDistance) {
+        var from = player.getEyePosition(partialTicks);
+        var look = player.getViewVector(partialTicks);
+        var to = from.add(look.x * blockReachDistance, look.y * blockReachDistance, look.z * blockReachDistance);
+
+        var hitResult = player.level()
+                .clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
+        if (hitResult.getType() != HitResult.Type.MISS) {
+            to = hitResult.getLocation();
+        }
+
+        return ProjectileUtil.getEntityHitResult(
+                player,
+                from,
+                to,
+                new AABB(from, to),
+                EntitySelector.NO_CREATIVE_OR_SPECTATOR
+                        .and(e -> e != null
+                                && e.isPickable()
+                                && e instanceof LivingEntity
+                                && !(e instanceof FakePlayer)
+                                && !getAllRidingEntities(player).contains(e)
+                                && PREDICATES.stream().allMatch(predicate -> predicate.test((LivingEntity) e))),
+                Mth.square(blockReachDistance));
+    }
+
+    private static List<Entity> getAllRidingEntities(Player player) {
+        var ridingEntities = new ArrayList<Entity>();
+        Entity entity = player;
+        while (entity.isPassenger()) {
+            var vehicle = entity.getVehicle();
+            if (vehicle == null) {
+                break;
+            }
+            entity = vehicle;
+            ridingEntities.add(entity);
+        }
+        return ridingEntities;
+    }
+}
